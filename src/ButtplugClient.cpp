@@ -65,6 +65,29 @@ void ButtplugClient::request_device_list(std::function<void(std::vector<Device>)
     send_request(req);
 }
 
+void ButtplugClient::send_linear_cmd(std::uint32_t device_idx, std::uint32_t position, std::uint32_t duration){
+    auto id = Util::random_message_id();
+    auto p = Util::clamp<std::uint32_t>(position, 0, 100);
+    json vectors=json::array({});
+    json v = {
+        {"Index", 0},
+        {"Duration", duration},
+        {"Position", p / 100.0}
+    };
+    vectors.push_back(v);
+
+    json msg_body = {
+        {"Id", id},
+        {"DeviceIndex", device_idx},
+        {"Vectors", vectors}
+    };
+    json req = {
+        {"LinearCmd", msg_body}
+    };
+
+    send_request(req);
+}
+
 void ButtplugClient::do_connect(tcp::resolver::results_type& results){
     asio::async_connect(
         ws_.next_layer(), results.begin(), results.end(), 
@@ -138,16 +161,28 @@ void ButtplugClient::send_request(const json &j) {
     // Create a JSON array and add the object to it
     json request = json::array();
     request.push_back(j);
+
+    bool is_writing = !request_queue_.empty();
+
     std::cout << ">>" << request.dump() << std::endl;
-    do_write(request.dump());
+    request_queue_.push(request.dump());
+    if(!is_writing) {
+        do_write();
+    }
 }
 
-void ButtplugClient::do_write(const std::string& data){
+void ButtplugClient::do_write(){
+    auto request = request_queue_.front();
     ws_.async_write(
-        asio::buffer(data),
-        [](boost::system::error_code ec, std::size_t){
+        asio::buffer(request),
+        [this](boost::system::error_code ec, std::size_t){
             if(ec){
-                std::cerr << "write error: " << ec.message() << std::endl;
+               std::cerr << "write error: " << ec.message() << std::endl;
+            } else{
+                request_queue_.pop();
+                if(!request_queue_.empty()) {
+                    do_write();
+                }
             }
         });
 }

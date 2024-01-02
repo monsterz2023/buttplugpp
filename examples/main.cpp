@@ -1,7 +1,7 @@
-#include "../src/ButtplugClient.hpp"
-
 #include <iostream>
 #include <boost/asio.hpp>
+#include "../src/Util.hpp"
+#include "../src/ButtplugClient.hpp"
 
 int main(){
     boost::asio::io_context ioc;
@@ -9,7 +9,8 @@ int main(){
 
     bc -> connect([bc](){
         bc -> start_scanning([bc](){
-            bc -> request_device_list([](std::vector<Device> devices){
+            bc -> send_linear_cmd(0, Util::random_position(), 500);
+            bc -> request_device_list([bc](std::vector<Device> devices){
                 std::for_each(
                     devices.begin(), devices.end(), 
                     [](const Device &device){
@@ -18,7 +19,7 @@ int main(){
                             device.device_messages.begin(), device.device_messages.end(),
                             [](const std::pair<std::string, DeviceMessage>& pair) {
                                 auto msg = pair.second;                                
-                                std::cout << pair.first << "||" << msg.key << std::endl;
+                                std::cout << msg.key << std::endl;
                                 std::for_each(
                                     msg.message_attributes.begin(), msg.message_attributes.end(),
                                     [](const MessageAttribute& attr){

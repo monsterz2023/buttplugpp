@@ -2,8 +2,9 @@
 #define BUTTPLUG_CLIENT_HPP
 #include <boost/beast.hpp>
 #include <boost/asio.hpp>
-#include <nlohmann/json.hpp>
 #include <iostream>
+#include <nlohmann/json.hpp>
+#include <queue>
 
 using tcp=boost::asio::ip::tcp;
 namespace asio=boost::asio;
@@ -57,6 +58,7 @@ class ButtplugClient {
     void connect(Callback cb);
     void start_scanning(Callback cb);
     void request_device_list(std::function<void(std::vector<Device>)> cb);
+    void send_linear_cmd(std::uint32_t device_idx, std::uint32_t position, std::uint32_t duration);
     void close();
 
     private:
@@ -67,12 +69,13 @@ class ButtplugClient {
     std::string port_;
     Callback on_connected_;
     std::map<uint32_t, JsonCallback> callbacks_;
+    std::queue<std::string> request_queue_;
 
     void register_client();
     void do_connect(tcp::resolver::results_type& results);
     void do_handshake();
     void do_read();
-    void do_write(const std::string& data);
+    void do_write();
     void send_request(const json &j);
     void distribute_callback(const json&j);
 };
